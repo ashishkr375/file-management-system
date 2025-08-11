@@ -47,8 +47,8 @@ export async function rateLimit(
 
 // Different rate limits for different API endpoints
 export const rateLimits = {
-  auth: { limit: 5, windowMs: 60 * 1000 }, // 5 requests per minute
-  upload: { limit: 100, windowMs: 60 * 60 * 1000 }, // 100 uploads per hour
-  download: { limit: 1000, windowMs: 60 * 60 * 1000 }, // 1000 downloads per hour
+  auth: { limit: 500, windowMs: 60 * 1000 }, // 500 requests per minute
+  upload: { limit: 10000, windowMs: 60 * 60 * 1000 }, // 10000 uploads per hour
+  download: { limit: 10000, windowMs: 60 * 1000 }, // 10000 downloads per minute
   admin: { limit: 100, windowMs: 60 * 1000 } // 100 requests per minute
 };

@@ -19,6 +19,7 @@ export default function AdminLayout({
 }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastAuthCheck, setLastAuthCheck] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -26,24 +27,34 @@ export default function AdminLayout({
 
     // Re-check auth on focus (in case the user logs out in another tab)
     const handleFocus = () => {
-      checkAuth();
+      // Debounce auth checks to prevent too many requests
+      const now = Date.now();
+      if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+        checkAuth();
+      }
     };
 
     // Add a listener for auth state changes
     const authCheckInterval = setInterval(() => {
       checkAuth();
-    }, 50000); // Check every 50 seconds
+    }, 300000); // Check every 5 minutes (300000ms) instead of every 50 seconds
 
     // Listen for storage events (for cross-tab communication)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'authStateChanged' || e.key === 'loginSuccess') {
-        checkAuth();
+        const now = Date.now();
+        if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+          checkAuth();
+        }
       }
     };
 
     // Listen for custom login state change events (same-tab communication)
     const handleLoginStateChange = () => {
-      checkAuth();
+      const now = Date.now();
+      if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+        checkAuth();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
@@ -56,9 +67,12 @@ export default function AdminLayout({
       window.removeEventListener('loginStateChanged', handleLoginStateChange);
       clearInterval(authCheckInterval);
     };
-  }, []);
+  }, [lastAuthCheck]);
 
   async function checkAuth() {
+    // Update the last auth check time
+    setLastAuthCheck(Date.now());
+    
     try {
       const res = await fetch('/api/auth/v2/me', {
         credentials: 'include'  // Important for sending cookies
