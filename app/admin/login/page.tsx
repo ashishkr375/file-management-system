@@ -35,11 +35,11 @@ export default function AdminLoginPage() {
           // Dispatch a custom event for same-tab communication
           window.dispatchEvent(new Event('loginStateChanged'));
           
-          // Navigate to admin dashboard with a slight delay to allow event to propagate
+          // Navigate to admin dashboard with a sufficient delay to allow session cookie to be set properly
           setTimeout(() => {
             // Use a full page reload to ensure clean state
             window.location.href = '/admin';
-          }, 100);
+          }, 500);
         } else {
           toast.error('You do not have admin privileges');
         }

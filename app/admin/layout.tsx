@@ -23,27 +23,33 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    checkAuth();
+    // Only run initial auth check if not already authenticated
+    if (!user) {
+      checkAuth();
+    }
 
     // Re-check auth on focus (in case the user logs out in another tab)
     const handleFocus = () => {
       // Debounce auth checks to prevent too many requests
       const now = Date.now();
-      if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+      if (now - lastAuthCheck > 30000) { // Only check if 30 seconds have passed since last check
         checkAuth();
       }
     };
 
-    // Add a listener for auth state changes
+    // Add a listener for auth state changes, but check less frequently
     const authCheckInterval = setInterval(() => {
-      checkAuth();
-    }, 300000); // Check every 5 minutes (300000ms) instead of every 50 seconds
+      // Only recheck if not loading and enough time has passed
+      if (!isLoading && Date.now() - lastAuthCheck > 300000) {
+        checkAuth();
+      }
+    }, 600000); // Check every 10 minutes (600000ms)
 
     // Listen for storage events (for cross-tab communication)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'authStateChanged' || e.key === 'loginSuccess') {
         const now = Date.now();
-        if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+        if (now - lastAuthCheck > 30000) { // Only check if 30 seconds have passed since last check
           checkAuth();
         }
       }
@@ -52,7 +58,7 @@ export default function AdminLayout({
     // Listen for custom login state change events (same-tab communication)
     const handleLoginStateChange = () => {
       const now = Date.now();
-      if (now - lastAuthCheck > 10000) { // Only check if 10 seconds have passed since last check
+      if (now - lastAuthCheck > 30000) { // Only check if 30 seconds have passed since last check
         checkAuth();
       }
     };
@@ -69,18 +75,43 @@ export default function AdminLayout({
     };
   }, [lastAuthCheck]);
 
+  // Debounced checkAuth function with timeout tracking
+  let authCheckInProgress = false;
+  let authCheckTimeout: NodeJS.Timeout | null = null;
+  
   async function checkAuth() {
+    // Prevent multiple simultaneous auth checks
+    if (authCheckInProgress) {
+      return;
+    }
+    
     // Update the last auth check time
-    setLastAuthCheck(Date.now());
+    const now = Date.now();
+    setLastAuthCheck(now);
+    authCheckInProgress = true;
+    
+    // Set a timeout to ensure the check completes
+    if (authCheckTimeout) {
+      clearTimeout(authCheckTimeout);
+    }
+    authCheckTimeout = setTimeout(() => {
+      authCheckInProgress = false;
+    }, 10000); // Force reset after 10 seconds
     
     try {
+      // Use cache control to prevent browsers from caching the response
       const res = await fetch('/api/auth/v2/me', {
-        credentials: 'include'  // Important for sending cookies
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       if (res.ok) {
         const userData = await res.json();
-        console.log("User data received:", JSON.stringify(userData, null, 2)); // Detailed logging
+        console.log("User data received at:", new Date().toISOString());
         
         // Only allow admin or superadmin to access this section
         if (userData.role === 'admin' || userData.role === 'superadmin') {
@@ -95,8 +126,15 @@ export default function AdminLayout({
         } else {
           // If logged in but not admin, show error
           toast.error('You do not have permission to access this page');
-          router.replace('/admin/login');
+          // Only redirect if we're not already on the login page
+          if (window.location.pathname !== '/admin/login') {
+            router.replace('/admin/login');
+          }
         }
+      } else if (res.status === 429) {
+        // Rate limit error - wait longer before retrying
+        console.warn("Rate limit reached for authentication checks");
+        // Don't update user state or redirect - just wait
       } else {
         // Not logged in or session expired
         setUser(null);
@@ -113,6 +151,11 @@ export default function AdminLayout({
       }
     } finally {
       setIsLoading(false);
+      authCheckInProgress = false;
+      if (authCheckTimeout) {
+        clearTimeout(authCheckTimeout);
+        authCheckTimeout = null;
+      }
     }
   }
 

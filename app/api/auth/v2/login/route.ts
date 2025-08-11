@@ -36,10 +36,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
+    console.log(`Login attempt: ${email} at ${new Date().toISOString()}`);
+    
     const meta = readMetadata();
     const user = meta.users.find(u => u.email === email);
     
     if (!user) {
+      console.log(`Login failed: User not found - ${email}`);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -48,9 +51,12 @@ export async function POST(req: NextRequest) {
                            comparePassword(password, user.passwordHash);
     
     if (!isPasswordValid) {
+      console.log(`Login failed: Invalid password - ${email}`);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    console.log(`Login successful: ${email} with role ${user.role}`);
+    
     const userData = {
       id: user.id,
       email: user.email,
@@ -60,6 +66,13 @@ export async function POST(req: NextRequest) {
 
     // Create session
     const response = await setSession(userData);
+    
+    // Add additional headers for debugging
+    response.headers.set('X-Login-Success', 'true');
+    response.headers.set('X-User-Role', user.role);
+    
+    // Log cookies that are being set
+    console.log(`Session cookie set for ${email}, expires in 8 hours`);
     
     // Send user data in response
     return response;
