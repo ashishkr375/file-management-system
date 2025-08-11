@@ -7,11 +7,14 @@ const publicPaths = [
   '/api/auth/login',
   '/api/auth/v2/login',
   '/api/auth/v2/me',
+  '/api/auth/v2/logout',
   '/api/auth/register',
   '/login',
   '/register',
   '/',
   '/admin/login',
+  '/favicon.ico',
+  '/_next',
 ];
 
 // Paths that require admin access

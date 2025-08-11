@@ -21,6 +21,8 @@ export default function UserLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const router = useRouter();
+  // Create the ref at the component level, not in the effect
+  const lastFocusTimeRef = useRef(Date.now());
 
   useEffect(() => {
     async function checkAuth() {
@@ -59,9 +61,6 @@ export default function UserLayout({
 
     checkAuth();
 
-    // Store the last focus time as a module-level variable
-    const lastFocusTimeRef = useRef(Date.now());
-
     // Re-check auth on focus but with less frequency
     const handleFocus = () => {
       // Only re-check auth if we've been unfocused for a while
@@ -80,7 +79,7 @@ export default function UserLayout({
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [router]);
+  }, [router, isLoading]); // Include isLoading but we don't need to include lastFocusTimeRef as it's a ref
 
   const handleLogout = async () => {
     try {
