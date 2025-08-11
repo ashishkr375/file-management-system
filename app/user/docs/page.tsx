@@ -202,7 +202,8 @@ Content-Type: multipart/form-data`}</pre>
                       <h5 className="text-sm font-medium text-gray-700">Request Body</h5>
                       <div className="mt-2 bg-gray-100 p-3 rounded-md font-mono text-xs overflow-x-auto">
                         <pre>{`file: File or File[] (binary) - Single file or array of files
-warehouseId: string - ID of the target warehouse`}</pre>
+warehouseId: string - ID of the target warehouse
+originalName: string (optional) - Custom filename for the uploaded file. If provided, the extension from the original file will be preserved.`}</pre>
                       </div>
                     </div>
                     <div className="mt-3">
@@ -332,11 +333,15 @@ export function useFileUpload() {
       
       // Append each file to the form data
       if (Array.isArray(files)) {
-        files.forEach(file => {
+        files.forEach((file, index) => {
           formData.append('file', file);
+          // You can also provide custom names for each file
+          // formData.append('originalName', 'custom-name-' + index + getFileExtension(file.name));
         });
       } else {
         formData.append('file', files);
+        // For single file upload with custom name
+        // formData.append('originalName', 'custom-name' + getFileExtension(files.name));
       }
       
       // Include the warehouse ID
@@ -520,19 +525,23 @@ export async function POST(request) {
                 <div className="mt-4">
                   <h4 className="font-medium">cURL Examples</h4>
                   <div className="mt-2 bg-gray-100 p-3 rounded-md font-mono text-xs overflow-x-auto">
-                    <pre>{`# Upload a single file
+                    <pre>{`# Upload a single file with custom filename
 curl -X POST \\
   -H "X-API-Key: your-api-key-here" \\
   -F "file=@/path/to/your/file.jpg" \\
   -F "warehouseId=w-1234567890" \\
+  -F "originalName=my-custom-filename.jpg" \\
   http://localhost:3000/api/upload
 
-# Upload multiple files
+# Upload multiple files with custom filenames
 curl -X POST \\
   -H "X-API-Key: your-api-key-here" \\
   -F "file=@/path/to/file1.jpg" \\
   -F "file=@/path/to/file2.pdf" \\
   -F "file=@/path/to/file3.png" \\
+  -F "originalName=custom-image.jpg" \\
+  -F "originalName=custom-document.pdf" \\
+  -F "originalName=custom-picture.png" \\
   -F "warehouseId=w-1234567890" \\
   http://localhost:3000/api/upload
 

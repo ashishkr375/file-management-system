@@ -139,9 +139,21 @@ export async function POST(req: NextRequest) {
       console.error('No valid files found in the FormData');
       return NextResponse.json({ error: 'No valid files found in the request' }, { status: 400 });
     }
+
+    // Get custom originalNames from formData if provided
+    const customNames = formData.getAll('originalName');
     
     const uploadResults = await Promise.all(files.map(async (file, index) => {
       console.log(`Processing file ${index + 1}/${files.length}: ${file.name}`);
+      
+      // Get the file extension from the original file
+      const fileExt = file.name.substring(file.name.lastIndexOf('.')) || '';
+      
+      // If custom name is provided for this file, use it with original extension
+      const customName = customNames[index];
+      const originalName = customName 
+        ? (customName.toString().endsWith(fileExt) ? customName.toString() : customName.toString() + fileExt)
+        : file.name;
       
       // Generate unique filename with timestamp to avoid collisions
       const fileName = `${Date.now()}-${Math.floor(Math.random() * 10000)}-${file.name}`;
@@ -159,7 +171,7 @@ export async function POST(req: NextRequest) {
       const newFile = addFile({
         warehouseId,
         filename: fileName,
-        originalName: file.name || 'unknown',
+        originalName: originalName || 'unknown',
         uploadedAt: new Date().toISOString(),
         uploader,
         size: stats.size,
