@@ -62,16 +62,18 @@ export async function setSession(userData: SessionData['user']): Promise<NextRes
   const token = await createSessionToken({ user: userData });
   const response = new NextResponse(JSON.stringify(userData));
   
-  // Determine if we need secure cookies based on request protocol
+  // Set the cookie in a way that works in production
   const isProduction = process.env.NODE_ENV === 'production';
   
   response.cookies.set('session', token, {
     httpOnly: true,
-    secure: isProduction, // Only use secure cookies in production
+    secure: false, // Set to false for both HTTP and HTTPS
     sameSite: 'lax',
     path: '/', // Ensure cookie is available for all paths
     maxAge: 8 * 60 * 60 // 8 hours
   });
+  
+  console.log(`Session cookie set for user ${userData?.email || 'unknown'} with role ${userData?.role || 'unknown'}`);
   
   // Debug header to help identify cookie issues
   response.headers.set('X-Auth-Status', 'success');

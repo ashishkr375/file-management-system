@@ -21,9 +21,14 @@ export default function HomePage() {
       });
 
       if (res.ok) {
-        window.location.href = '/user/dashboard';
+        // Wait a bit to ensure the cookie has time to be set
+        setTimeout(() => {
+          console.log("Login successful, redirecting to dashboard");
+          window.location.href = '/user/dashboard';
+        }, 500);
       } else {
         const data = await res.json();
+        console.error("Login failed:", data.error);
         setError(data.error || 'Login failed');
       }
     } catch (err) {

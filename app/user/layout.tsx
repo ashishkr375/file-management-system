@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
@@ -26,19 +26,32 @@ export default function UserLayout({
     async function checkAuth() {
       try {
         const res = await fetch('/api/auth/v2/me', {
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
         });
         if (res.ok) {
           const userData = await res.json();
+          console.log("User authenticated successfully:", userData.email);
           setUser(userData);
           setIsAuthenticated(true);
         } else {
+          console.warn("Authentication failed with status:", res.status);
           // Redirect to login page if not authenticated
-          router.push('/');
+          if (window.location.pathname !== '/') {
+            console.log("Redirecting to home page due to authentication failure");
+            window.location.href = '/';
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.push('/');
+        if (window.location.pathname !== '/') {
+          console.log("Redirecting to home page due to authentication error");
+          window.location.href = '/';
+        }
       } finally {
         setIsLoading(false);
       }
@@ -46,14 +59,26 @@ export default function UserLayout({
 
     checkAuth();
 
-    // Re-check auth on focus (in case the user logs out in another tab)
+    // Store the last focus time as a module-level variable
+    const lastFocusTimeRef = useRef(Date.now());
+
+    // Re-check auth on focus but with less frequency
     const handleFocus = () => {
-      checkAuth();
+      // Only re-check auth if we've been unfocused for a while
+      if (document.visibilityState === 'visible' && 
+          !isLoading && 
+          Date.now() - lastFocusTimeRef.current > 60000) {
+        lastFocusTimeRef.current = Date.now();
+        checkAuth();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
     return () => {
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [router]);
 

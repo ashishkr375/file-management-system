@@ -39,15 +39,42 @@ export async function middleware(request: NextRequest) {
 
   // Check authentication for protected routes
   const session = await getSession(request);
+  
+  // Log for debugging
+  console.log(`Middleware check: Path=${path}, IsLoggedIn=${session.isLoggedIn}, User=${session.user?.email || 'none'}`);
 
   if (!session.isLoggedIn || !session.user) {
+    // For API routes, return a 401
+    if (path.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    } 
+    // For user routes, redirect to homepage
+    else if (path.startsWith('/user/')) {
+      console.log(`Redirecting unauthenticated user from ${path} to /`);
+      const url = new URL('/', request.url);
+      return NextResponse.redirect(url);
+    }
+    // For admin routes, redirect to admin login
+    else if (path.startsWith('/admin/') && !path.startsWith('/admin/login')) {
+      console.log(`Redirecting unauthenticated admin from ${path} to /admin/login`);
+      const url = new URL('/admin/login', request.url);
+      return NextResponse.redirect(url);
+    }
+    // Default 401 for other paths
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   // Check admin access for admin routes
   if (adminPaths.some(p => path.startsWith(p))) {
     if (!['admin', 'superadmin'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      // For API routes, return 403
+      if (path.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      // For browser routes, redirect
+      console.log(`Redirecting non-admin user from ${path} to /user/dashboard`);
+      const url = new URL('/user/dashboard', request.url);
+      return NextResponse.redirect(url);
     }
   }
 
@@ -66,8 +93,11 @@ function handleCORS(request: NextRequest) {
 }
 
 function addCORSHeaders(response: NextResponse) {
+  // Setting '*' with credentials won't work, so we use the server's URL from the environment
+  const origin = process.env.NEXT_PUBLIC_BASE_URL || '*';
+  
   response.headers.set('Access-Control-Allow-Credentials', 'true');
-  response.headers.set('Access-Control-Allow-Origin', 'http://172.16.55.10:4545');
+  response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
 }
