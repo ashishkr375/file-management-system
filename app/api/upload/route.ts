@@ -77,6 +77,14 @@ export async function POST(req: NextRequest) {
     
     // Check API key in header first
     let apiKey = req.headers.get('x-api-key');
+    console.log('API Key from headers:', apiKey);
+    
+    // Log all headers for debugging
+    console.log('All request headers:');
+    req.headers.forEach((value, key) => {
+      console.log(`${key}: ${value}`);
+    });
+    
     let keyData;
     let uploaderId = 'unknown';
     
@@ -146,7 +154,51 @@ export async function POST(req: NextRequest) {
     
     // If still no API key, return error
     if (!apiKey) {
-      return NextResponse.json({ error: 'Authentication required. Please provide an API key or log in.' }, { status: 401 });
+      // Special case for requests with valid session cookies
+      const sessionToken = req.cookies.get('session')?.value;
+      if (sessionToken) {
+        try {
+          // Import the session verification function to avoid circular dependencies
+          const { verifySessionToken } = await import('../../lib/session');
+          
+          // Verify session and get user info
+          const sessionData = await verifySessionToken(sessionToken);
+          if (sessionData && sessionData.user) {
+            const user = sessionData.user;
+            console.log(`User authenticated via session: ${user.email} (${user.role})`);
+            console.log(`User warehouse IDs: ${user.warehouseIds?.join(', ') || 'none'}`);
+            console.log(`Requested warehouse ID: ${warehouseId}`);
+            
+            // If user is authenticated, check if they have access to the warehouse
+            if (user.role === 'admin' || user.role === 'superadmin' || 
+                (user.warehouseIds && user.warehouseIds.includes(warehouseId))) {
+              
+              console.log(`User has access to warehouse ${warehouseId}`);
+              
+              // For authorized users, create a temporary key
+              apiKey = 'user-session-auth';
+              keyData = {
+                key: 'user-session-auth',
+                warehouseId: warehouseId,
+                createdAt: new Date().toISOString(),
+                isActive: true
+              };
+              uploaderId = user.id;
+            } else {
+              console.log(`User does not have access to warehouse ${warehouseId}`);
+              return NextResponse.json({ error: 'You do not have access to this warehouse' }, { status: 403 });
+            }
+          } else {
+            console.log('Session is invalid or expired');
+            return NextResponse.json({ error: 'Authentication required. Please provide an API key or log in.' }, { status: 401 });
+          }
+        } catch (error) {
+          console.error("Session verification error:", error);
+          return NextResponse.json({ error: 'Authentication required. Please provide an API key or log in.' }, { status: 401 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Authentication required. Please provide an API key or log in.' }, { status: 401 });
+      }
     }
     
     // If we have an API key but no keyData yet, validate it
@@ -159,8 +211,18 @@ export async function POST(req: NextRequest) {
           createdAt: new Date().toISOString(),
           isActive: true
         };
-      } else {
+      } else if (apiKey) {
+        console.log('Validating API key:', apiKey);
+        // Log all available API keys for debugging
+        const meta = readMetadata();
+        console.log('Available API keys in the system:');
+        meta.apiKeys.forEach(k => {
+          console.log(`- Key: ${k.key.substring(0, 10)}... for warehouse: ${k.warehouseId}`);
+        });
+        
         keyData = getApiKey(apiKey);
+        console.log('API key validation result:', keyData ? 'Valid' : 'Invalid');
+        
         if (!keyData) {
           return NextResponse.json({ error: 'Invalid API key' }, { status: 403 });
         }

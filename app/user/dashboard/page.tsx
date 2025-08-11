@@ -217,17 +217,18 @@ export default function DashboardPage() {
       
       if (res.ok) {
         const data = await res.json();
-        const fullUrl = `${baseUrl}${data.signedUrl}`;
+        // The signedUrl already includes the baseUrl from the server
+        const signedUrl = data.signedUrl;
         
         // Copy to clipboard
-        navigator.clipboard.writeText(fullUrl);
+        navigator.clipboard.writeText(signedUrl);
         toast.success('URL copied to clipboard!');
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
         
         // Also offer to open the URL
         if (confirm('Would you like to open it in a new tab?')) {
-          window.open(fullUrl, '_blank');
+          window.open(signedUrl, '_blank');
         }
       } else {
         const errorData = await res.json();

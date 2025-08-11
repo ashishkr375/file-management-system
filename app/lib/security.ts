@@ -35,32 +35,75 @@ export function generateSignedUrl({ warehouseId, filename, expiresIn }: SignedUr
     .update(stringToSign)
     .digest('hex');
   
-  return `/api/files/${warehouseId}/${filename}?expires=${expires}&signature=${signature}`;
+  // Get base URL from environment or empty string for relative URL
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  
+  // Make sure we don't accidentally double the base URL by checking if it ends with /
+  const basePath = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
+  // Return a properly formatted URL
+  return `${basePath}/api/files/${warehouseId}/${filename}?expires=${expires}&signature=${signature}`;
 }
 
 export function verifySignedUrl(url: string): boolean {
   try {
-    const urlObj = new URL(url, 'http://localhost');
-    const path = urlObj.pathname.split('/api/files/')[1];
+    console.log('Verifying signed URL:', url);
+    
+    // Handle both absolute and relative URLs
+    let urlObj: URL;
+    if (url.startsWith('http')) {
+      // It's already an absolute URL
+      urlObj = new URL(url);
+    } else {
+      // It's a relative URL
+      urlObj = new URL(url, 'http://localhost');
+    }
+    
+    console.log('Parsed URL:', urlObj.toString());
+    
+    // Extract the path part after /api/files/
+    const pathMatch = urlObj.pathname.match(/\/api\/files\/(.+)/);
+    if (!pathMatch) {
+      console.log('URL path does not match expected format');
+      return false;
+    }
+    
+    const path = pathMatch[1];
     const expires = urlObj.searchParams.get('expires');
     const signature = urlObj.searchParams.get('signature');
 
-    if (!path || !expires || !signature) return false;
+    if (!path || !expires || !signature) {
+      console.log(`Missing required URL components: path=${!!path}, expires=${!!expires}, signature=${!!signature}`);
+      return false;
+    }
 
     const now = Math.floor(Date.now() / 1000);
-    if (now > parseInt(expires)) return false;
+    if (now > parseInt(expires)) {
+      console.log(`Signed URL expired: current=${now}, expires=${expires}`);
+      return false;
+    }
 
     const stringToSign = `${path}?expires=${expires}`;
+    console.log('String to sign:', stringToSign);
+    
     const expectedSignature = crypto
       .createHmac('sha256', HMAC_SECRET)
       .update(stringToSign)
       .digest('hex');
-
-    return crypto.timingSafeEqual(
+    
+    console.log('Expected signature:', expectedSignature);
+    console.log('Provided signature:', signature);
+      
+    // Use a constant-time comparison to avoid timing attacks
+    const isValid = crypto.timingSafeEqual(
       Buffer.from(signature),
       Buffer.from(expectedSignature)
     );
-  } catch {
+    
+    console.log('Signature validation result:', isValid);
+    return isValid;
+  } catch (error) {
+    console.error('Error verifying signed URL:', error);
     return false;
   }
 }

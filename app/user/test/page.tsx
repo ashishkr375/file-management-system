@@ -31,6 +31,7 @@ export default function TestPage() {
   const [file, setFile] = useState<File | null>(null);
   const [warehouseId, setWarehouseId] = useState('');
   const [filename, setFilename] = useState('');
+  const [customOriginalName, setCustomOriginalName] = useState('');
   const [expiresIn, setExpiresIn] = useState('3600');
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState<TestResponse | null>(null);
@@ -70,6 +71,11 @@ export default function TestPage() {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       setFilename(selectedFile.name);
+      
+      // Clear custom original name if it was empty or matches the previous file's name
+      if (!customOriginalName || customOriginalName === filename) {
+        setCustomOriginalName('');
+      }
     }
   }
 
@@ -94,20 +100,64 @@ export default function TestPage() {
           return;
         }
         
+        // Make sure warehouse ID is provided for upload
+        if (!warehouseId) {
+          toast.dismiss(testingToast);
+          toast.error('Warehouse ID is required for upload');
+          setIsTesting(false);
+          return;
+        }
+        
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('warehouseId', warehouseId);
         
-        response = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            'X-API-Key': apiKey,
-          },
-          body: formData,
-          credentials: 'include', // Add credentials to include session cookie
+        // If custom original name is provided, add it to the form data
+        if (customOriginalName) {
+          formData.append('originalName', customOriginalName);
+        }
+        
+        // Using fetch with XMLHttpRequest to properly handle the upload with headers
+        const xhr = new XMLHttpRequest();
+        
+        const uploadPromise = new Promise<any>((resolve, reject) => {
+          xhr.open('POST', '/api/upload');
+          xhr.setRequestHeader('X-API-Key', apiKey); // Set API key header directly
+          
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const data = JSON.parse(xhr.responseText);
+                resolve(data);
+              } catch (err) {
+                reject(new Error('Invalid server response'));
+              }
+            } else {
+              try {
+                const errorData = JSON.parse(xhr.responseText);
+                reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+              } catch (err) {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+              }
+            }
+          };
+          
+          xhr.onerror = () => {
+            reject(new Error('Network error during upload'));
+          };
+          
+          xhr.send(formData);
         });
         
-        responseData = await response.json();
+        try {
+          responseData = await uploadPromise;
+        } catch (error: any) {
+          console.error('Upload error:', error);
+          responseData = { error: error.message };
+        }
+        
         setResponseType('json');
+        
       } else if (apiEndpoint === '/api/signed-url') {
         // Signed URL endpoint
         response = await fetch('/api/signed-url', {
@@ -125,8 +175,20 @@ export default function TestPage() {
         
         responseData = await response.json();
         
-        if (responseData.success && responseData.signedUrl) {
-          setDownloadUrl(responseData.signedUrl);
+        if (responseData.signedUrl) {
+          // Check if we received a properly formatted URL
+          console.log('Received signedUrl:', responseData.signedUrl);
+          
+          // If the URL already has the base (http/https), use it directly
+          if (responseData.signedUrl.startsWith('http')) {
+            setDownloadUrl(responseData.signedUrl);
+            console.log('Using absolute URL:', responseData.signedUrl);
+          } else {
+            // For relative URLs (starting with /), just use it as-is
+            // The browser will resolve it correctly against the current origin
+            setDownloadUrl(responseData.signedUrl);
+            console.log('Using relative URL (browser will resolve):', responseData.signedUrl);
+          }
         }
         
         setResponseType('json');
@@ -282,18 +344,52 @@ export default function TestPage() {
               </div>
               
               {apiEndpoint === '/api/upload' && (
-                <div>
-                  <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
-                    File to Upload
-                  </label>
-                  <input
-                    id="file"
-                    type="file"
-                    onChange={handleFileChange}
-                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+                <>
+                  <div>
+                    <label htmlFor="warehouseId" className="block text-sm font-medium text-gray-700 mb-1">
+                      Warehouse ID
+                    </label>
+                    <input
+                      id="warehouseId"
+                      type="text"
+                      value={warehouseId}
+                      onChange={(e) => setWarehouseId(e.target.value)}
+                      placeholder="Enter warehouse ID"
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
+                      File to Upload
+                    </label>
+                    <input
+                      id="file"
+                      type="file"
+                      onChange={handleFileChange}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="customOriginalName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom Original Name (Optional)
+                    </label>
+                    <input
+                      id="customOriginalName"
+                      type="text"
+                      value={customOriginalName}
+                      onChange={(e) => setCustomOriginalName(e.target.value)}
+                      placeholder="Enter custom original name"
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                      If left empty, the original filename will be used
+                    </p>
+                  </div>
+                </>
               )}
               
               {(apiEndpoint === '/api/signed-url' || apiEndpoint.startsWith('/api/files/')) && (
@@ -394,6 +490,10 @@ export default function TestPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
+                          onClick={(e) => {
+                            // Add a click handler to log and check the URL
+                            console.log('Opening URL:', downloadUrl);
+                          }}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -416,6 +516,10 @@ export default function TestPage() {
                         href={downloadUrl}
                         download={filename}
                         className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
+                        onClick={(e) => {
+                          // Add a click handler to log and check the URL
+                          console.log('Opening URL for download:', downloadUrl);
+                        }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />

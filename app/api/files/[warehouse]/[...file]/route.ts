@@ -29,29 +29,40 @@ export async function GET(
 
     // Check if file is verified or has valid signature
     const url = new URL(req.url);
-    const isSignedUrl = url.searchParams.has('signature');
-
-    if (!fileRecord.isVerified && !isSignedUrl) {
+    const isSignedUrl = url.searchParams.has('signature') && url.searchParams.has('expires');
+    
+    if (isSignedUrl) {
+      console.log('Processing signed URL access:', req.url);
+      const isValid = verifySignedUrl(req.url);
+      console.log('Signature validation result:', isValid ? 'Valid' : 'Invalid');
+      
+      if (!isValid) {
+        return NextResponse.json({ error: 'Invalid or expired signature' }, { status: 403 });
+      }
+    } else if (!fileRecord.isVerified) {
+      console.log('Rejecting access to unverified file without signed URL');
       return NextResponse.json({ error: 'File not verified' }, { status: 403 });
-    }
-
-    if (isSignedUrl && !verifySignedUrl(req.url)) {
-      return NextResponse.json({ error: 'Invalid or expired signature' }, { status: 403 });
     }
 
     // If not using a signed URL, verify the user has access to this warehouse
     if (!isSignedUrl) {
+      console.log('Access without signed URL - checking session auth');
       const session = await getSession(req);
+      
+      console.log('Session check result:', session.isLoggedIn ? 'Logged in' : 'Not logged in');
       
       if (session.isLoggedIn && session.user) {
         const userId = session.user.id;
         const userRole = session.user.role;
+        
+        console.log(`Authenticated user: ${userId} (${userRole})`);
         
         // Admins have access to all warehouses
         if (userRole !== 'admin' && userRole !== 'superadmin') {
           // Regular users need explicit warehouse access
           const user = meta.users.find(u => u.id === userId);
           if (!user || !user.warehouseIds || !user.warehouseIds.includes(warehouse)) {
+            console.log('Access denied: User does not have access to this warehouse');
             return NextResponse.json({ 
               error: 'Access denied: You do not have permission to access this warehouse' 
             }, { status: 403 });
@@ -59,6 +70,7 @@ export async function GET(
         }
       } else {
         // If not logged in and not using a signed URL, deny access
+        console.log('Authentication required - no session or signed URL');
         return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
       }
     }
