@@ -1,0 +1,196 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { readMetadata, addFile, getApiKey } from '../../lib/storage';
+import { rateLimit, rateLimits } from '../../lib/rateLimit';
+import { verifyToken } from '../../lib/security';
+import { writeFile } from 'fs/promises';
+import { createReadStream, createWriteStream, statSync } from 'fs';
+import { mkdir } from 'fs/promises';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
+
+// For Next.js App Router, we use a different configuration approach
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+export const revalidate = 0;
+
+// Helper to convert NextRequest to Node's IncomingMessage for formidable
+// This helper is no longer needed with our new implementation
+// function requestToIncomingMessage(req: NextRequest): IncomingMessage {
+//   const nodeReq = new IncomingMessage(null as any);
+//   nodeReq.method = req.method;
+//   nodeReq.url = req.url;
+//   nodeReq.headers = {};
+  
+//   req.headers.forEach((value, key) => {
+//     nodeReq.headers[key] = value;
+//   });
+
+//   return nodeReq;
+// }
+
+export async function POST(req: NextRequest) {
+  const rateLimited = await rateLimit(req, rateLimits.upload);
+  if (rateLimited) return rateLimited;
+
+  try {
+    // Get the formData first to check for warehouse ID
+    const formData = await req.formData();
+    
+    // Log the incoming form data for debugging
+    console.log('Received form data in API route:');
+    console.log('Form data entries:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}: ${value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value}`);
+    }
+    
+    // Check if we have files in the request
+    const files: File[] = [];
+    
+    // Always use getAll to handle multiple files correctly
+    console.log('Checking for all files with key "file"...');
+    const allFiles = formData.getAll('file');
+    console.log(`Found ${allFiles.length} entries with name 'file'`);
+    
+    allFiles.forEach((item, index) => {
+      if (item instanceof File) {
+        console.log(`Adding file ${index + 1}/${allFiles.length}: ${item.name} (${item.size} bytes)`);
+        files.push(item);
+      } else {
+        console.log(`Item ${index + 1} is not a File: ${typeof item}`);
+      }
+    });
+    
+    if (files.length === 0) {
+      return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
+    }
+    
+    // Get warehouseId from form data
+    const warehouseId = formData.get('warehouseId') as string;
+    
+    if (!warehouseId) {
+      return NextResponse.json({ error: 'Warehouse ID is required' }, { status: 400 });
+    }
+    
+    // Check API key in header first
+    let apiKey = req.headers.get('x-api-key');
+    let keyData;
+    let uploaderId = 'unknown';
+    
+    // If no API key in header, check for JWT token
+    if (!apiKey) {
+      const token = req.cookies.get('token')?.value;
+      
+      if (token) {
+        try {
+          // Verify token and get user info
+          const payload = verifyToken(token);
+          if (payload) {
+            // If user is authenticated, check if they have access to the warehouse
+            const meta = readMetadata();
+            const user = meta.users.find(u => u.id === payload.id);
+            
+            if (user && (user.role === 'admin' || user.role === 'superadmin' || 
+                (user.warehouseIds && user.warehouseIds.includes(warehouseId)))) {
+              
+              // Find a valid API key for this warehouse
+              const apiKeyForWarehouse = meta.apiKeys.find(k => k.warehouseId === warehouseId);
+              
+              if (apiKeyForWarehouse) {
+                apiKey = apiKeyForWarehouse.key;
+                keyData = apiKeyForWarehouse;
+                uploaderId = payload.id; // Use user ID as uploader
+              } else {
+                return NextResponse.json({ error: 'No API key found for this warehouse' }, { status: 403 });
+              }
+            } else {
+              return NextResponse.json({ error: 'You do not have access to this warehouse' }, { status: 403 });
+            }
+          }
+        } catch (error) {
+          console.error('Token verification error:', error);
+        }
+      }
+    }
+    
+    // If still no API key, return error
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Authentication required. Please provide an API key or log in.' }, { status: 401 });
+    }
+    
+    // If we have an API key but no keyData yet, validate it
+    if (!keyData) {
+      keyData = getApiKey(apiKey);
+      if (!keyData) {
+        return NextResponse.json({ error: 'Invalid API key' }, { status: 403 });
+      }
+    }
+
+    // Create directory for warehouse if it doesn't exist
+    const uploadDir = join(process.cwd(), 'uploads', warehouseId);
+    await mkdir(uploadDir, { recursive: true });
+    
+    // Get uploader info from form data or use the one from token
+    const uploader = formData.get('uploader') as string || uploaderId;
+    
+    // Process all files
+    console.log(`Processing ${files.length} files for upload to warehouse ${warehouseId}`);
+    
+    if (files.length === 0) {
+      console.error('No valid files found in the FormData');
+      return NextResponse.json({ error: 'No valid files found in the request' }, { status: 400 });
+    }
+    
+    const uploadResults = await Promise.all(files.map(async (file, index) => {
+      console.log(`Processing file ${index + 1}/${files.length}: ${file.name}`);
+      
+      // Generate unique filename with timestamp to avoid collisions
+      const fileName = `${Date.now()}-${Math.floor(Math.random() * 10000)}-${file.name}`;
+      const filePath = join(uploadDir, fileName);
+      
+      // Convert the file to a buffer and write it to the filesystem
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(filePath, fileBuffer);
+      
+      // Get file metadata
+      const stats = statSync(filePath);
+      console.log(`File ${index + 1} saved: ${fileName} (${stats.size} bytes)`);
+      
+      // Add file metadata
+      const newFile = addFile({
+        warehouseId,
+        filename: fileName,
+        originalName: file.name || 'unknown',
+        uploadedAt: new Date().toISOString(),
+        uploader,
+        size: stats.size,
+        mimeType: file.type || 'application/octet-stream',
+        isVerified: true, // Auto-verify all files uploaded with a valid API key
+        verifiedBy: 'system',
+        verifiedAt: new Date().toISOString()
+      });
+      
+      return {
+        fileId: newFile.id,
+        filename: fileName,
+        originalName: file.name,
+        size: stats.size,
+        url: `/api/files/${warehouseId}/${fileName}`
+      };
+    }));
+    
+    console.log(`Successfully processed ${uploadResults.length} files`);
+    
+    const response = {
+      success: true,
+      files: uploadResults,
+      count: uploadResults.length
+    };
+    
+    console.log('Sending response:', response);
+    
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'File upload failed' }, { status: 500 });
+  }
+}

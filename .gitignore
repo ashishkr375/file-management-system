@@ -1,0 +1,5 @@
+node_modules
+uploads/
+storage/metadata.json
+.env.local
+.next/
