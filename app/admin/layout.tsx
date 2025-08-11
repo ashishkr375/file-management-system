@@ -32,7 +32,7 @@ export default function AdminLayout({
     // Add a listener for auth state changes
     const authCheckInterval = setInterval(() => {
       checkAuth();
-    }, 5000); // Check every 5 seconds
+    }, 50000); // Check every 50 seconds
 
     // Listen for storage events (for cross-tab communication)
     const handleStorageChange = (e: StorageEvent) => {
