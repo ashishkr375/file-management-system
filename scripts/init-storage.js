@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Storage initialization script for File Management System
+ * @author Ashish Kumar (https://github.com/ashishkr375)
+ * @copyright (c) 2025 Ashish Kumar. All rights reserved.
+ * @license MIT - Free to use with attribution
+ * @repository https://github.com/ashishkr375/file-management-system
+ * @linkedin https://www.linkedin.com/in/ashish-kumar-nitp
+ */
+
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -26,7 +35,22 @@ if (fs.existsSync(META_PATH)) {
     metadata = { users: [], warehouses: [], apiKeys: [], files: [] };
   }
 } else {
-  metadata = { users: [], warehouses: [], apiKeys: [], files: [] };
+  metadata = {
+    _metadata: {
+      system: "File Management System",
+      version: "1.0.0",
+      creator: "Ashish Kumar",
+      github: "https://github.com/ashishkr375",
+      repository: "https://github.com/ashishkr375/file-management-system",
+      linkedin: "https://www.linkedin.com/in/ashish-kumar-nitp",
+      license: "MIT - Free to use with attribution",
+      created: new Date().toISOString()
+    },
+    users: [],
+    warehouses: [],
+    apiKeys: [],
+    files: []
+  };
 }
 
 // Ensure default admin exists

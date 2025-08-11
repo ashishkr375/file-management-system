@@ -233,9 +233,14 @@ export default function AdminLayout({
         {/* Footer */}
         <footer className="bg-white/80 backdrop-blur-sm border-t border-slate-200/50">
           <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-sm text-slate-600">
-              &copy; {new Date().getFullYear()} NextJS Local S3 Admin Portal. All rights reserved.
-            </p>
+            <div className="text-center text-sm text-slate-600">
+              <p className="mb-2">&copy; {new Date().getFullYear()} NextJS Local S3 Admin Portal. All rights are with <a href="https://github.com/ashishkr375" className="text-blue-600 hover:underline">Ashish Kumar</a></p>
+              <p className="mb-1">
+                <a href="https://github.com/ashishkr375/file-management-system" className="text-blue-600 hover:underline">Open Source on GitHub</a> • 
+                <a href="https://www.linkedin.com/in/ashish-kumar-nitp" className="text-blue-600 hover:underline ml-2">Connect on LinkedIn</a>
+              </p>
+              <p className="text-xs">Free to use with proper attribution</p>
+            </div>
           </div>
         </footer>
       </div>
@@ -307,11 +312,16 @@ export default function AdminLayout({
       {children}
       
       {/* Footer */}
-      <footer className="bg-white border-t mt-auto">
+       <footer className="bg-white/80 backdrop-blur-sm border-t border-slate-200/50">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} NextJS Local S3 Admin Portal. All rights reserved.
-          </p>
+          <div className="text-center text-sm text-slate-600">
+            <p className="mb-2">&copy; {new Date().getFullYear()} Secure File Management System. All rights are with <a href="https://github.com/ashishkr375" className="text-blue-600 hover:underline">Ashish Kumar</a></p>
+            <p className="mb-1">
+              <a href="https://github.com/ashishkr375/file-management-system" className="text-blue-600 hover:underline">Open Source on GitHub</a> • 
+              <a href="https://www.linkedin.com/in/ashish-kumar-nitp" className="text-blue-600 hover:underline ml-2">Connect on LinkedIn</a>
+            </p>
+            <p className="text-xs">Free to use with proper attribution</p>
+          </div>
         </div>
       </footer>
     </div>

@@ -1,3 +1,11 @@
+/**
+ * @project File Management System
+ * @author Ashish Kumar (https://github.com/ashishkr375)
+ * @website https://www.linkedin.com/in/ashish-kumar-nitp
+ * @description A robust file management system built with Next.js
+ * @license Free to use with attribution
+ */
+
 import React from 'react';
 import './globals.css'
 

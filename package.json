@@ -1,7 +1,18 @@
 {
-  "name": "nextjs-local-s3-admin",
+  "name": "file-management-system",
   "version": "1.0.0",
   "private": true,
+  "author": {
+    "name": "Ashish Kumar",
+    "email": "ashishk.dd22.cs@nitp.ac.in",
+    "url": "https://github.com/ashishkr375"
+  },
+  "homepage": "https://github.com/ashishkr375/file-management-system",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashishkr375/file-management-system"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Security utilities for File Management System
+ * @author Ashish Kumar (https://github.com/ashishkr375)
+ * @copyright (c) 2025 Ashish Kumar. All rights reserved.
+ * @license MIT - Free to use with attribution
+ * @repository https://github.com/ashishkr375/file-management-system
+ * @linkedin https://www.linkedin.com/in/ashish-kumar-nitp
+ */
+
 import { SignedUrlParams } from './types';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
