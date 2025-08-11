@@ -35,7 +35,9 @@ export default function AdminPage() {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/v2/me', {
+        credentials: 'include'
+      });
       if (res.ok) {
         const userData = await res.json();
         // Only set isLoggedIn if the user is an admin or superadmin
@@ -53,10 +55,11 @@ export default function AdminPage() {
     e.preventDefault();
     const loadingToast = toast.loading('Logging in...');
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/v2/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
 
       if (res.ok) {
@@ -83,7 +86,8 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/create-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ warehouseName, notes })
+        body: JSON.stringify({ warehouseName, notes }),
+        credentials: 'include'
       });
 
       if (res.ok) {
@@ -113,7 +117,9 @@ export default function AdminPage() {
     const loadingToast = toast.loading('Loading data...');
     try {
       // Load APIs
-      const apisRes = await fetch('/api/admin/list-apis');
+      const apisRes = await fetch('/api/admin/list-apis', {
+        credentials: 'include'
+      });
       if (apisRes.ok) {
         const data = await apisRes.json();
         setApis(data.apis);

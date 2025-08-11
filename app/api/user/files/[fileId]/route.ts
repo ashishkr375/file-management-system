@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata, writeMetadata } from '../../../../lib/storage';
-import { verifyToken } from '../../../../lib/security';
+import { getSession } from '../../../../lib/session';
 import { rateLimit, rateLimits } from '../../../../lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
@@ -13,16 +13,16 @@ export async function DELETE(
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    // Get user session using the new session system
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
+    const userId = session.user.id;
+    const userRole = session.user.role;
+    
     const { fileId } = params;
     const meta = readMetadata();
     
@@ -34,9 +34,17 @@ export async function DELETE(
     
     const file = meta.files[fileIndex];
     
+    // Check if user has access to the warehouse this file belongs to
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+      const user = meta.users.find(u => u.id === userId);
+      if (!user || !user.warehouseIds || !user.warehouseIds.includes(file.warehouseId)) {
+        return NextResponse.json({ error: 'Forbidden: You do not have access to this warehouse' }, { status: 403 });
+      }
+    }
+    
     // Check permissions - only file uploader or admin can delete
-    if (file.uploader !== payload.id && !['superadmin', 'admin'].includes(payload.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (file.uploader !== userId && !['superadmin', 'admin'].includes(userRole)) {
+      return NextResponse.json({ error: 'Forbidden: You can only delete files you uploaded' }, { status: 403 });
     }
 
     // Delete the actual file

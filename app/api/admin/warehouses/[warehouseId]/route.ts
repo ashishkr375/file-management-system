@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata, writeMetadata } from '../../../../lib/storage';
-import { verifyToken } from '../../../../lib/security';
+import { getSession } from '../../../../lib/session';
 import { rateLimit, rateLimits } from '../../../../lib/rateLimit';
 
 export async function DELETE(
@@ -12,13 +12,13 @@ export async function DELETE(
 
   try {
     // Verify admin credentials
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
-    const payload = verifyToken(token);
-    if (!payload || !['superadmin', 'admin'].includes(payload.role)) {
+    
+    if (!['superadmin', 'admin'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateFile } from '../../../lib/storage';
-import { verifyToken } from '../../../lib/security';
+import { getSession } from '../../../lib/session';
 import { rateLimit, rateLimits } from '../../../lib/rateLimit';
 import { VerifyFileParams } from '../../../lib/types';
 
@@ -9,13 +9,13 @@ export async function POST(req: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
-    const payload = verifyToken(token);
-    if (!payload || !['superadmin', 'admin'].includes(payload.role)) {
+    
+    if (!['superadmin', 'admin'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const updatedFile = updateFile(body.fileId, {
       isVerified: body.isVerified,
-      verifiedBy: payload.id,
+      verifiedBy: session.user.id,
       verifiedAt: new Date().toISOString()
     });
 

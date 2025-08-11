@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata } from '../../../lib/storage';
-import { verifyToken } from '../../../lib/security';
+import { getSession } from '../../../lib/session';
 import { rateLimit, rateLimits } from '../../../lib/rateLimit';
 
 export async function GET(req: NextRequest) {
@@ -8,25 +8,36 @@ export async function GET(req: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    // Get user session using the new session system
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
     const meta = readMetadata();
+    const userId = session.user.id;
+    const userRole = session.user.role;
     
-    // For regular users, only return files uploaded by them
-    // Admins can see all files
+    // Find the user to get their warehouse access permissions
+    const user = meta.users.find(u => u.id === userId);
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    
+    // Filter files based on user role and warehouse access
     const files = meta.files.filter(file => {
-      if (['superadmin', 'admin'].includes(payload.role)) {
+      // Admins and superadmins can see all files
+      if (['superadmin', 'admin'].includes(userRole)) {
         return true;
       }
-      return file.uploader === payload.id;
+      
+      // Regular users can only see files from warehouses they have access to
+      if (!user.warehouseIds || !user.warehouseIds.includes(file.warehouseId)) {
+        return false;
+      }
+      
+      return true;
     }).map(file => ({
       id: file.id,
       filename: file.filename,

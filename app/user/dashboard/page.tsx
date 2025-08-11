@@ -67,7 +67,9 @@ export default function DashboardPage() {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/v2/me', {
+        credentials: 'include'
+      });
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
@@ -268,7 +270,8 @@ export default function DashboardPage() {
       for (const file of filesToDelete) {
         try {
           const res = await fetch(`/api/user/files/${file.id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
           });
           
           if (res.ok) {

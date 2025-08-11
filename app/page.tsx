@@ -13,10 +13,11 @@ export default function HomePage() {
     setError('');
     
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/v2/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
 
       if (res.ok) {
@@ -42,7 +43,7 @@ export default function HomePage() {
             <h1 className="text-3xl font-bold text-white tracking-tight">File Management System</h1>
           </div>
           <Link 
-            href="/admin" 
+            href="/admin/login" 
             className="group px-5 py-2.5 bg-white/95 hover:bg-white text-blue-600 rounded-lg shadow-md text-sm font-medium transition-all duration-200 flex items-center space-x-2 hover:scale-105 active:scale-95"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

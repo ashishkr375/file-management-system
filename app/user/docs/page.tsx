@@ -22,7 +22,9 @@ export default function DocsPage() {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/v2/me', {
+        credentials: 'include'
+      });
       if (res.ok) {
         const data = await res.json();
         setUserData(data);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata, writeMetadata } from '../../../../lib/storage';
-import { verifyToken, hashPassword } from '../../../../lib/security';
+import { getSession } from '../../../../lib/session';
+import { hashPassword } from '../../../../lib/security';
 import { rateLimit, rateLimits } from '../../../../lib/rateLimit';
 import { User } from '../../../../lib/types';
 
@@ -12,13 +13,13 @@ export async function DELETE(
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
-    const payload = verifyToken(token);
-    if (!payload || !['superadmin', 'admin'].includes(payload.role)) {
+    
+    if (!['superadmin', 'admin'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -36,7 +37,7 @@ export async function DELETE(
     }
     
     // Only superadmin can delete admin users
-    if (userToDelete.role === 'admin' && payload.role !== 'superadmin') {
+    if (userToDelete.role === 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Only superadmins can delete admin users' }, { status: 403 });
     }
     
@@ -64,13 +65,13 @@ export async function PUT(
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
-    const payload = verifyToken(token);
-    if (!payload || !['superadmin', 'admin'].includes(payload.role)) {
+    
+    if (!['superadmin', 'admin'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -92,7 +93,7 @@ export async function PUT(
     const userToUpdate = meta.users[userIndex];
     
     // Only superadmin can update admin users
-    if (userToUpdate.role === 'admin' && payload.role !== 'superadmin') {
+    if (userToUpdate.role === 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Only superadmins can update admin users' }, { status: 403 });
     }
     
@@ -102,7 +103,7 @@ export async function PUT(
     }
 
     // If changing role to admin, ensure only superadmin can do this
-    if (role === 'admin' && userToUpdate.role !== 'admin' && payload.role !== 'superadmin') {
+    if (role === 'admin' && userToUpdate.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Only superadmins can promote users to admin' }, { status: 403 });
     }
 

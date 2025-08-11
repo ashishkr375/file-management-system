@@ -17,6 +17,13 @@ interface ApiKey {
   createdAt: string;
 }
 
+interface DeleteWarehouseState {
+  show: boolean;
+  warehouseId: string | null;
+  warehouseName: string;
+  confirmText: string;
+}
+
 interface File {
   id: string;
   filename: string;
@@ -53,6 +60,12 @@ export default function WarehousesPage() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [filesToDelete, setFilesToDelete] = useState<File[]>([]);
+  const [deleteWarehouseState, setDeleteWarehouseState] = useState<DeleteWarehouseState>({
+    show: false,
+    warehouseId: null,
+    warehouseName: '',
+    confirmText: ''
+  });
 
   useEffect(() => {
     checkAuth();
@@ -67,7 +80,9 @@ export default function WarehousesPage() {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/v2/me', {
+        credentials: 'include'
+      });
       if (res.ok) {
         const userData = await res.json();
         if (userData.role !== 'admin' && userData.role !== 'superadmin') {
@@ -287,7 +302,8 @@ export default function WarehousesPage() {
       for (const file of filesToDelete) {
         try {
           const res = await fetch(`/api/user/files/${file.id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
           });
           
           if (res.ok) {
@@ -329,6 +345,75 @@ export default function WarehousesPage() {
       console.error('Delete files failed:', error);
       toast.error('Failed to delete files. Please try again.');
       setShowDeleteDialog(false);
+    }
+  }
+
+  async function deleteWarehouse() {
+    if (deleteWarehouseState.confirmText !== 'confirm delete') {
+      toast.error('Please type "confirm delete" to proceed');
+      return;
+    }
+
+    const warehouseId = deleteWarehouseState.warehouseId;
+    if (!warehouseId) return;
+
+    try {
+      const loadingToast = toast.loading('Deleting warehouse...');
+      
+      // First delete all files in the warehouse
+      const warehouseFiles = files.filter(file => file.warehouseId === warehouseId);
+      let successCount = 0;
+      let failCount = 0;
+
+      // Delete files sequentially
+      for (const file of warehouseFiles) {
+        try {
+          const res = await fetch(`/api/user/files/${file.id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          
+          if (res.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          failCount++;
+        }
+      }
+
+      // Now delete the warehouse API key
+      await fetch(`/api/admin/warehouses/${warehouseId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      // Reset state and refresh
+      setDeleteWarehouseState({
+        show: false,
+        warehouseId: null,
+        warehouseName: '',
+        confirmText: ''
+      });
+      
+      toast.dismiss(loadingToast);
+      toast.success('Warehouse deleted successfully');
+      
+      // Refresh data
+      loadData();
+      
+      // Return to warehouse list if we were viewing the deleted warehouse
+      if (selectedWarehouse === warehouseId) {
+        setSelectedWarehouse(null);
+      }
+    } catch (error) {
+      console.error('Delete warehouse failed:', error);
+      toast.error('Failed to delete warehouse');
+      setDeleteWarehouseState({
+        ...deleteWarehouseState,
+        show: false
+      });
     }
   }
 
@@ -429,7 +514,28 @@ export default function WarehousesPage() {
 
             {/* Warehouse Details */}
             <div className="bg-gradient-to-br from-white to-blue-50 p-8 rounded-xl shadow-sm border border-blue-100 transition-all hover:shadow-md">
-              <h3 className="text-xl font-semibold text-blue-800 mb-6">Warehouse Information</h3>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-semibold text-blue-800">Warehouse Information</h3>
+                <button
+                  onClick={() => {
+                    const warehouse = warehouses.find(w => w.id === selectedWarehouse);
+                    if (warehouse) {
+                      setDeleteWarehouseState({
+                        show: true,
+                        warehouseId: warehouse.id,
+                        warehouseName: warehouse.name,
+                        confirmText: ''
+                      });
+                    }
+                  }}
+                  className="bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-all duration-200 text-sm font-medium flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Delete Warehouse
+                </button>
+              </div>
               
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -726,12 +832,31 @@ export default function WarehousesPage() {
                       </div>
                     </div>
                     
-                    <button
-                      onClick={() => setSelectedWarehouse(warehouse.id)}
-                      className="ml-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
-                    >
-                      Manage
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setSelectedWarehouse(warehouse.id)}
+                        className="ml-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                      >
+                        Manage
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteWarehouseState({
+                            show: true,
+                            warehouseId: warehouse.id,
+                            warehouseName: warehouse.name,
+                            confirmText: ''
+                          });
+                        }}
+                        className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -787,6 +912,81 @@ export default function WarehousesPage() {
                 onClick={confirmDelete}
               >
                 {filesToDelete.length > 1 ? `Delete ${filesToDelete.length} Files` : 'Delete File'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Warehouse Confirmation Dialog */}
+      {deleteWarehouseState.show && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-red-700 mb-2">
+              Delete Warehouse
+            </h3>
+            <div className="mb-5">
+              <p className="text-sm text-gray-700 mb-4">
+                <strong>Warning:</strong> You are about to delete warehouse <strong>{deleteWarehouseState.warehouseName}</strong>. 
+                This action cannot be undone and will permanently delete:
+              </p>
+              
+              <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1 mb-4">
+                <li>All files stored in this warehouse</li>
+                <li>All API keys associated with this warehouse</li>
+                <li>All warehouse metadata and settings</li>
+              </ul>
+              
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      Please type <strong>confirm delete</strong> below to proceed
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <input
+                type="text"
+                placeholder="Type 'confirm delete' to enable the delete button"
+                value={deleteWarehouseState.confirmText}
+                onChange={(e) => setDeleteWarehouseState({
+                  ...deleteWarehouseState,
+                  confirmText: e.target.value
+                })}
+                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500 text-sm"
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setDeleteWarehouseState({
+                  show: false,
+                  warehouseId: null,
+                  warehouseName: '',
+                  confirmText: ''
+                })}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  deleteWarehouseState.confirmText === 'confirm delete'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-red-300 cursor-not-allowed'
+                }`}
+                onClick={deleteWarehouse}
+                disabled={deleteWarehouseState.confirmText !== 'confirm delete'}
+              >
+                Delete Warehouse
               </button>
             </div>
           </div>

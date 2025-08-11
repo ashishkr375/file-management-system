@@ -25,7 +25,9 @@ export default function UserLayout({
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/v2/me', {
+          credentials: 'include'
+        });
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
@@ -55,12 +57,20 @@ export default function UserLayout({
     };
   }, [router]);
 
-  const handleLogout = () => {
-    // Clear the auth token cookie properly
-    document.cookie = 'token=; Max-Age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure;';
-    
-    // Force a hard redirect to root to ensure complete state reset
-    window.location.href = '/';
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/v2/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      // Force a hard redirect to root to ensure complete state reset
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect even if the logout API call fails
+      window.location.href = '/';
+    }
   };
 
   if (isLoading) {

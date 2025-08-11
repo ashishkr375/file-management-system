@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata } from '../../../lib/storage';
-import { verifyToken } from '../../../lib/security';
+import { getSession } from '../../../lib/session';
 import { rateLimit, rateLimits } from '../../../lib/rateLimit';
 
 export async function GET(req: NextRequest) {
@@ -8,20 +8,19 @@ export async function GET(req: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
+    // Get user session using the new session system
+    const session = await getSession(req);
+    
+    if (!session.isLoggedIn || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
+    const userId = session.user.id;
+    const userRole = session.user.role;
     const metadata = readMetadata();
     
     // If user is admin or superadmin, they can see all warehouses
-    if (payload.role === 'admin' || payload.role === 'superadmin') {
+    if (userRole === 'admin' || userRole === 'superadmin') {
       const warehouses = metadata.warehouses.map(warehouse => ({
         id: warehouse.id,
         name: warehouse.name,
@@ -33,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
     
     // For regular users, only return warehouses they have access to
-    const user = metadata.users.find(u => u.id === payload.id);
+    const user = metadata.users.find(u => u.id === userId);
     if (!user || !user.warehouseIds || user.warehouseIds.length === 0) {
       return NextResponse.json({ warehouses: [] });
     }
