@@ -7,8 +7,8 @@ export default function RootRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = document.cookie.includes('token=');
-    if (token) {
+    const session = document.cookie.includes('session=');
+    if (session) {
       router.push('/user/dashboard');
     }
   }, [router]);

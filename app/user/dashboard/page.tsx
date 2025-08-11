@@ -422,6 +422,7 @@ export default function DashboardPage() {
                     const uploadResponse = await fetch('/api/upload', {
                       method: 'POST',
                       body: formData,
+                      credentials: 'include', // Important: include cookies for authentication
                     });
                     
                     // Get the response text first (works whether it's JSON or not)

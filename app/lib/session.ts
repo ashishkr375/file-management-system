@@ -62,7 +62,7 @@ export async function setSession(userData: SessionData['user']): Promise<NextRes
   const token = await createSessionToken({ user: userData });
   const response = new NextResponse(JSON.stringify(userData));
   
-  // Set the cookie in a way that works in production
+  // Set the cookie in a way that works in both development and production
   const isProduction = process.env.NODE_ENV === 'production';
   
   response.cookies.set('session', token, {
@@ -74,6 +74,7 @@ export async function setSession(userData: SessionData['user']): Promise<NextRes
   });
   
   console.log(`Session cookie set for user ${userData?.email || 'unknown'} with role ${userData?.role || 'unknown'}`);
+  console.log('Session token length:', token.length);
   
   // Debug header to help identify cookie issues
   response.headers.set('X-Auth-Status', 'success');

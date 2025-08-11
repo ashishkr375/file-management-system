@@ -97,7 +97,10 @@ function handleCORS(request: NextRequest) {
 
 function addCORSHeaders(response: NextResponse) {
   // Setting '*' with credentials won't work, so we use the server's URL from the environment
-  const origin = process.env.NEXT_PUBLIC_BASE_URL || '*';
+  // For local development, explicitly use the localhost URL
+  const origin = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000'
+    : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
   
   response.headers.set('Access-Control-Allow-Credentials', 'true');
   response.headers.set('Access-Control-Allow-Origin', origin);

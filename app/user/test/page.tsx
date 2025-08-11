@@ -103,6 +103,7 @@ export default function TestPage() {
             'X-API-Key': apiKey,
           },
           body: formData,
+          credentials: 'include', // Add credentials to include session cookie
         });
         
         responseData = await response.json();

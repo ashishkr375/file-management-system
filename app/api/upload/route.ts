@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readMetadata, addFile, getApiKey } from '../../lib/storage';
 import { rateLimit, rateLimits } from '../../lib/rateLimit';
-import { verifyToken } from '../../lib/security';
+// Using only session-based authentication, removing token imports
 import { writeFile } from 'fs/promises';
 import { createReadStream, createWriteStream, statSync } from 'fs';
 import { mkdir } from 'fs/promises';
@@ -29,6 +29,10 @@ export const revalidate = 0;
 // }
 
 export async function POST(req: NextRequest) {
+  // Log all cookies for debugging
+  console.log('Upload API received request with cookies:', 
+    [...req.cookies.getAll().map(c => `${c.name}=${c.value.substring(0, 20)}...`)]);
+
   const rateLimited = await rateLimit(req, rateLimits.upload);
   if (rateLimited) return rateLimited;
 
@@ -76,39 +80,67 @@ export async function POST(req: NextRequest) {
     let keyData;
     let uploaderId = 'unknown';
     
-    // If no API key in header, check for JWT token
+    // If no API key in header, check for session
     if (!apiKey) {
-      const token = req.cookies.get('token')?.value;
+      const sessionToken = req.cookies.get('session')?.value;
       
-      if (token) {
+      console.log('No API key provided, checking session');
+      console.log('Session cookie present:', !!sessionToken);
+      console.log('Available cookies:', [...req.cookies.getAll().map(c => c.name)].join(', '));
+      
+      if (sessionToken) {
         try {
-          // Verify token and get user info
-          const payload = verifyToken(token);
-          if (payload) {
-            // If user is authenticated, check if they have access to the warehouse
-            const meta = readMetadata();
-            const user = meta.users.find(u => u.id === payload.id);
+          // Import the session verification function to avoid circular dependencies
+          const { verifySessionToken } = await import('../../lib/session');
+          
+          // Verify session and get user info
+          const sessionData = await verifySessionToken(sessionToken);
+          
+          console.log('Session verification result:', sessionData ? 'Valid session' : 'Invalid session');
+          
+          if (sessionData && sessionData.user) {
+            const user = sessionData.user;
+            console.log(`User authenticated via session: ${user.email} (${user.role})`);
+            console.log(`User warehouse IDs: ${user.warehouseIds?.join(', ') || 'none'}`);
+            console.log(`Requested warehouse ID: ${warehouseId}`);
             
-            if (user && (user.role === 'admin' || user.role === 'superadmin' || 
-                (user.warehouseIds && user.warehouseIds.includes(warehouseId)))) {
+            // If user is authenticated, check if they have access to the warehouse
+            if (user.role === 'admin' || user.role === 'superadmin' || 
+                (user.warehouseIds && user.warehouseIds.includes(warehouseId))) {
               
-              // Find a valid API key for this warehouse
+              console.log(`User has access to warehouse ${warehouseId}`);
+              
+              // Find a valid API key for this warehouse or use a dummy one for auth users
+              const meta = readMetadata();
               const apiKeyForWarehouse = meta.apiKeys.find(k => k.warehouseId === warehouseId);
               
               if (apiKeyForWarehouse) {
                 apiKey = apiKeyForWarehouse.key;
                 keyData = apiKeyForWarehouse;
-                uploaderId = payload.id; // Use user ID as uploader
+                uploaderId = user.id; // Use user ID as uploader
               } else {
-                return NextResponse.json({ error: 'No API key found for this warehouse' }, { status: 403 });
+                // For authorized users, create a temporary key data
+                apiKey = 'user-session-auth';
+                keyData = {
+                  key: 'user-session-auth',
+                  warehouseId: warehouseId,
+                  createdAt: new Date().toISOString(),
+                  isActive: true
+                };
+                uploaderId = user.id;
               }
             } else {
+              console.log(`User does not have access to warehouse ${warehouseId}`);
               return NextResponse.json({ error: 'You do not have access to this warehouse' }, { status: 403 });
             }
+          } else {
+            console.log('Session is invalid or expired');
           }
         } catch (error) {
-          console.error('Token verification error:', error);
+          console.error('Session verification error:', error);
         }
+      } else {
+        console.log('No session cookie found in request');
       }
     }
     
@@ -119,9 +151,19 @@ export async function POST(req: NextRequest) {
     
     // If we have an API key but no keyData yet, validate it
     if (!keyData) {
-      keyData = getApiKey(apiKey);
-      if (!keyData) {
-        return NextResponse.json({ error: 'Invalid API key' }, { status: 403 });
+      // Special handling for session-authenticated users
+      if (apiKey === 'user-session-auth') {
+        keyData = {
+          key: 'user-session-auth',
+          warehouseId: warehouseId,
+          createdAt: new Date().toISOString(),
+          isActive: true
+        };
+      } else {
+        keyData = getApiKey(apiKey);
+        if (!keyData) {
+          return NextResponse.json({ error: 'Invalid API key' }, { status: 403 });
+        }
       }
     }
 
@@ -129,7 +171,7 @@ export async function POST(req: NextRequest) {
     const uploadDir = join(process.cwd(), 'uploads', warehouseId);
     await mkdir(uploadDir, { recursive: true });
     
-    // Get uploader info from form data or use the one from token
+    // Get uploader info from form data or use the one from session user
     const uploader = formData.get('uploader') as string || uploaderId;
     
     // Process all files
