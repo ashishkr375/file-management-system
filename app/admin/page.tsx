@@ -95,9 +95,20 @@ export default function AdminPage() {
         toast.dismiss(loadingToast);
         toast.success(`Warehouse created successfully!`);
         // Copy API key to clipboard
-        navigator.clipboard.writeText(data.apiKey)
-          .then(() => toast.success('API Key copied to clipboard'))
-          .catch(() => {});
+        try {
+          // Create a temporary textarea element
+          const textarea = document.createElement('textarea');
+          textarea.value = data.apiKey;
+          textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          toast.success('API Key copied to clipboard');
+        } catch (err) {
+          toast.error('Failed to copy API key');
+        }
         setWarehouseName('');
         setNotes('');
         loadData();
@@ -234,8 +245,20 @@ export default function AdminPage() {
                             </code>
                             <button 
                               onClick={() => {
-                                navigator.clipboard.writeText(api.key);
-                                toast.success('API Key copied to clipboard');
+                                try {
+                                  // Create a temporary textarea element
+                                  const textarea = document.createElement('textarea');
+                                  textarea.value = api.key;
+                                  textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+                                  document.body.appendChild(textarea);
+                                  textarea.focus();
+                                  textarea.select();
+                                  document.execCommand('copy');
+                                  document.body.removeChild(textarea);
+                                  toast.success('API Key copied to clipboard');
+                                } catch (err) {
+                                  toast.error('Failed to copy API key');
+                                }
                               }}
                               className="ml-2 p-1 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                               title="Copy to clipboard"
@@ -270,8 +293,20 @@ export default function AdminPage() {
                             </code>
                             <button 
                               onClick={() => {
-                                navigator.clipboard.writeText(`/api/files/${api.warehouseId}/`);
-                                toast.success('URL path copied to clipboard');
+                                try {
+                                  // Create a temporary textarea element
+                                  const textarea = document.createElement('textarea');
+                                  textarea.value = `/api/files/${api.warehouseId}/`;
+                                  textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+                                  document.body.appendChild(textarea);
+                                  textarea.focus();
+                                  textarea.select();
+                                  document.execCommand('copy');
+                                  document.body.removeChild(textarea);
+                                  toast.success('URL path copied to clipboard');
+                                } catch (err) {
+                                  toast.error('Failed to copy URL path');
+                                }
                               }}
                               className="ml-2 p-1 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                               title="Copy to clipboard"

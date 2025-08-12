@@ -171,9 +171,20 @@ export default function WarehousesPage() {
         toast.dismiss(loadingToast);
         toast.success(`Warehouse created successfully!`);
         // Copy API key to clipboard
-        navigator.clipboard.writeText(data.apiKey)
-          .then(() => toast.success('API Key copied to clipboard'))
-          .catch(() => {});
+        try {
+          // Create a temporary textarea element
+          const textarea = document.createElement('textarea');
+          textarea.value = data.apiKey;
+          textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          toast.success('API Key copied to clipboard');
+        } catch (err) {
+          toast.error('Failed to copy API key');
+        }
         setWarehouseName('');
         setNotes('');
         setShowCreateForm(false);
@@ -540,7 +551,34 @@ export default function WarehousesPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm font-medium text-blue-700 mb-2">ID</p>
-                  <p className="font-mono text-slate-700">{selectedWarehouse}</p>
+                  <div className="flex items-center">
+                    <p className="font-mono text-slate-700">{selectedWarehouse}</p>
+                    <button
+                      onClick={() => {
+                        try {
+                          // Create a temporary textarea element
+                          const textarea = document.createElement('textarea');
+                          textarea.value = selectedWarehouse || '';
+                          textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+                          document.body.appendChild(textarea);
+                          textarea.focus();
+                          textarea.select();
+                          document.execCommand('copy');
+                          document.body.removeChild(textarea);
+                          toast.success('Warehouse ID copied to clipboard');
+                        } catch (err) {
+                          toast.error('Failed to copy Warehouse ID');
+                        }
+                      }}
+                      className="ml-2 p-1 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Copy to clipboard"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-blue-700 mb-2">Created</p>
@@ -567,8 +605,20 @@ export default function WarehousesPage() {
                     onClick={() => {
                       const apiKey = warehouses.find(w => w.id === selectedWarehouse)?.apiKey;
                       if (apiKey) {
-                        navigator.clipboard.writeText(apiKey);
-                        toast.success('API Key copied to clipboard');
+                        try {
+                          // Create a temporary textarea element
+                          const textarea = document.createElement('textarea');
+                          textarea.value = apiKey;
+                          textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+                          document.body.appendChild(textarea);
+                          textarea.focus();
+                          textarea.select();
+                          document.execCommand('copy');
+                          document.body.removeChild(textarea);
+                          toast.success('API Key copied to clipboard');
+                        } catch (err) {
+                          toast.error('Failed to copy API key');
+                        }
                       }
                     }}
                     className="ml-2 p-2 text-blue-600 hover:text-blue-800"
