@@ -245,7 +245,7 @@ export default function DashboardPage() {
     }
   }
 
-  // ...existing code...
+async function deleteFile(fileId: string) {
     const fileToDelete = files.find(f => f.id === fileId);
     if (!fileToDelete) return;
     
