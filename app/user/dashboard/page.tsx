@@ -220,12 +220,17 @@ export default function DashboardPage() {
         // The signedUrl already includes the baseUrl from the server
         const signedUrl = data.signedUrl;
         
-        // Copy to clipboard
-        navigator.clipboard.writeText(signedUrl);
-        toast.success('URL copied to clipboard!');
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-        
+        // Copy to clipboard if available
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(signedUrl);
+          toast.success('URL copied to clipboard!');
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        } else {
+          // Fallback: Show the URL and ask user to copy manually
+          toast('Copy this URL manually:', { icon: '🔗' });
+          prompt('Copy this URL:', signedUrl);
+        }
         // Also offer to open the URL
         if (confirm('Would you like to open it in a new tab?')) {
           window.open(signedUrl, '_blank');
@@ -240,7 +245,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function deleteFile(fileId: string) {
+  // ...existing code...
     const fileToDelete = files.find(f => f.id === fileId);
     if (!fileToDelete) return;
     
