@@ -44,8 +44,9 @@ export async function GET(
       return NextResponse.json({ error: 'File not verified' }, { status: 403 });
     }
 
-    // If not using a signed URL, verify the user has access to this warehouse
-    if (!isSignedUrl) {
+    // If not using a signed URL and the file is not verified, verify the user has access
+    // Verified files are publicly accessible without authentication
+    if (!isSignedUrl && !fileRecord.isVerified) {
       console.log('Access without signed URL - checking session auth');
       const session = await getSession(req);
       
