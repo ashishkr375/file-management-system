@@ -198,105 +198,11 @@ export default function AdminLayout({
       <Toaster position="top-right" />
       
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-400 to-teal-400 shadow-md">
-        <div className="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-              </svg>
-              <Link href="/admin" className="text-3xl font-bold text-white hover:text-white/90 transition-colors">Admin Portal</Link>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-2">
-                {user ? (
-                  // Menu options for logged in admin users
-                  <>
-                    <Link 
-                      href="/admin"
-                      className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 rounded-lg transition-all duration-200"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link 
-                      href="/admin/users"
-                      className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 rounded-lg transition-all duration-200"
-                    >
-                      Manage Users
-                    </Link>
-                    <Link 
-                      href="/admin/warehouses"
-                      className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 rounded-lg transition-all duration-200"
-                    >
-                      Manage Warehouses
-                    </Link>
-                  </>
-                ) : (
-                  // Only show Return Home for non-logged in users
-                  <Link 
-                    href="/"
-                    className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 rounded-lg transition-all duration-200"
-                  >
-                    Return Home
-                  </Link>
-                )}
-              </div>
-              
-              {user ? (
-                // User profile and logout for logged in users
-                <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-lg pl-3 pr-2 py-2 shadow-sm">
-                  <div className="mr-3">
-                    <div className="text-sm font-medium text-white">
-                      {user.name || (user.email ? user.email.split('@')[0] : 'Admin')}
-                    </div>
-                    <div className="text-xs text-white/80">
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)} • {user.email}
-                    </div>
-                  </div>
-                  <button 
-                    onClick={handleLogout}
-                    className="flex items-center px-3 py-1.5 bg-white/90 hover:bg-white text-blue-600 rounded-lg transition-all duration-200 shadow-sm"
-                    title="Logout"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm font-medium">Logout</span>
-                  </button>
-                </div>
-              ) : (
-                // Login button for non-logged in users
-                <Link 
-                  href="/admin/login"
-                  className="flex items-center px-4 py-2 bg-white/90 hover:bg-white text-blue-600 rounded-lg transition-all duration-200 shadow-sm"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-sm font-medium">Login</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+     
       
       {children}
       
-      {/* Footer */}
-       <footer className="bg-white/80 backdrop-blur-sm border-t border-slate-200/50">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-slate-600">
-            <p className="mb-2">&copy; {new Date().getFullYear()} Secure File Management System. All rights are with <a href="https://github.com/ashishkr375" className="text-blue-600 hover:underline">Ashish Kumar</a></p>
-            <p className="mb-1">
-              <a href="https://github.com/ashishkr375/file-management-system" className="text-blue-600 hover:underline">Open Source on GitHub</a> • 
-              <a href="https://www.linkedin.com/in/ashish-kumar-nitp" className="text-blue-600 hover:underline ml-2">Connect on LinkedIn</a>
-            </p>
-            <p className="text-xs">Free to use with proper attribution</p>
-          </div>
-        </div>
-      </footer>
+    
     </div>
   );
 }
